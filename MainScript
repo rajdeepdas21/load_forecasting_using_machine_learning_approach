@@ -17,23 +17,22 @@ df = pd.read_excel(file_path, header=1)
 #Relevant columns by index to avoid KeyError
 df = df.iloc[:, 1:10]  # columns TIME to Humidity
 
-# Rename columns
+#Rename columns
 df.columns = ["TIME", "VOLTAGE", "CURRENT", "PF", "POWER_KW",
               "WEEKEND_WEEKDAY", "SEASON", "TEMP_F", "HUMIDITY"]
 
 #Convert TIME to hour
 df["HOUR"] = df["TIME"].astype(str).str.extract(r"(\d+)-").astype(int)
 
-#Lag features for STLF (previous 3 hours)
-for lag in range(1, 4):
+#Lag features for STLF (previous 24 hours)
+for lag in range(1, 25):  # 1 to 24
     df[f"Load_t-{lag}"] = df["POWER_KW"].shift(lag)
 
 df = df.dropna()
 
 #Input features and target
 feature_cols = ["HOUR", "VOLTAGE", "CURRENT", "PF", "WEEKEND_WEEKDAY",
-                "SEASON", "TEMP_F", "HUMIDITY",
-                "Load_t-1", "Load_t-2", "Load_t-3"]
+                "SEASON", "TEMP_F", "HUMIDITY"] + [f"Load_t-{lag}" for lag in range(1, 25)]
 X = df[feature_cols]
 y = df["POWER_KW"]
 
@@ -44,7 +43,7 @@ X_scaled = scaler.fit_transform(X)
 #Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-#ML models
+#Define ML models
 models = {
     "Decision Tree": DecisionTreeRegressor(max_depth=5),
     "Random Forest": RandomForestRegressor(n_estimators=100),
@@ -54,7 +53,7 @@ models = {
     "KNN (k=5)": KNeighborsRegressor(n_neighbors=5),
     "AdaBoost": AdaBoostRegressor(n_estimators=50),
     "Bagging (Tree)": BaggingRegressor(DecisionTreeRegressor(), n_estimators=50),
-    "MLP (Neural Net)": MLPRegressor(hidden_layer_sizes=(20,), solver='lbfgs', max_iter=5000, tol=1e-6)
+    "MLP (Neural Net)": MLPRegressor(hidden_layer_sizes=(20,), solver='lbfgs', max_iter=50000, tol=1e-6)
 }
 
 #Train and evaluate models
@@ -86,6 +85,6 @@ plt.xticks(rotation=45)
 plt.grid(axis="y")
 plt.show()
 
-#Display summary table
+#Summary table
 print("\nSTLF Model Performance Summary (MAE | MSE | RMSE | R² | R):")
 print(results_df)
