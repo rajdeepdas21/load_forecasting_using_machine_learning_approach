@@ -1,79 +1,70 @@
-# Load Forecasting using Multiple Regression Models
-
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, BaggingRegressor, AdaBoostRegressor
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.ensemble import (
-    GradientBoostingRegressor,
-    RandomForestRegressor,
-    BaggingRegressor,
-    AdaBoostRegressor
-)
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import matplotlib.pyplot as plt
 
-# Load dataset
-file_path = r"C:\Users\Rajdeep Das\Downloads\Active Power Load _33_11KV_Godishala Substation1.xlsx"
-df = pd.read_excel(file_path)
+#Load dataset, skip first metadata row
+file_path = "/home/rajdeep/Documents/load_forecasting/Active Power Load _33_11KV_Godishala Substation.xlsx"
+df = pd.read_excel(file_path, header=1)
 
-# Keep only relevant columns (adjust column names if needed)
-df = df[[
-    "TIME", "VOLTAGE", "CURRENT", "PF", "POWER (KW)",
-    '"WEEKEND/WEEKDAY"', "SEASON", "Temp (F)", "Humidity (%)"
-]].dropna()
+#Relevant columns by index to avoid KeyError
+df = df.iloc[:, 1:10]  # columns TIME to Humidity
 
-# Feature Engineering 
-# Convert TIME (e.g. '10-11') → hour number (10)
-df["HOUR"] = df["TIME"].str.extract(r"(\d+)").astype(int)
+# Rename columns
+df.columns = ["TIME", "VOLTAGE", "CURRENT", "PF", "POWER_KW",
+              "WEEKEND_WEEKDAY", "SEASON", "TEMP_F", "HUMIDITY"]
 
-# Encode categorical columns
-le = LabelEncoder()
-df['"WEEKEND/WEEKDAY"'] = le.fit_transform(df['"WEEKEND/WEEKDAY"'])
-df["SEASON"] = le.fit_transform(df["SEASON"])
+#Convert TIME to hour
+df["HOUR"] = df["TIME"].astype(str).str.extract(r"(\d+)-").astype(int)
 
-# Define features (X) and target (y)
-feature_cols = ["HOUR", "VOLTAGE", "CURRENT", "PF", '"WEEKEND/WEEKDAY"', 
-                "SEASON", "Temp (F)", "Humidity (%)"]
+#Lag features for STLF (previous 3 hours)
+for lag in range(1, 4):
+    df[f"Load_t-{lag}"] = df["POWER_KW"].shift(lag)
+
+df = df.dropna()
+
+#Input features and target
+feature_cols = ["HOUR", "VOLTAGE", "CURRENT", "PF", "WEEKEND_WEEKDAY",
+                "SEASON", "TEMP_F", "HUMIDITY",
+                "Load_t-1", "Load_t-2", "Load_t-3"]
 X = df[feature_cols]
-y = df["POWER (KW)"]
+y = df["POWER_KW"]
 
-# === Data Scaling (important for SVM, MLP, etc.) ===
+#Scale features for models sensitive to scale
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Train-Test Split
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, random_state=42
-)
+#Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-# Define Models 
+#ML models
 models = {
-    "Decision Tree (Depth=5)": DecisionTreeRegressor(max_depth=5, random_state=42),
-    "Random Forest": RandomForestRegressor(n_estimators=200, random_state=42),
-    "Gradient Boosting": GradientBoostingRegressor(n_estimators=150, learning_rate=0.05, random_state=42),
-    "Linear SVM": SVR(kernel="linear", C=1.0),
-    "RBF SVM": SVR(kernel="rbf", C=10, gamma=0.1),
+    "Decision Tree": DecisionTreeRegressor(max_depth=5),
+    "Random Forest": RandomForestRegressor(n_estimators=100),
+    "Gradient Boosting": GradientBoostingRegressor(n_estimators=100),
+    "Linear SVM": SVR(kernel="linear"),
+    "RBF SVM": SVR(kernel="rbf", gamma=0.1),
     "KNN (k=5)": KNeighborsRegressor(n_neighbors=5),
-    "AdaBoost": AdaBoostRegressor(n_estimators=100, random_state=42),
-    "Bagging (Tree)": BaggingRegressor(estimator=DecisionTreeRegressor(), n_estimators=100, random_state=42),
-    "MLP (Neural Net)": MLPRegressor(hidden_layer_sizes=(50, 30), solver='adam',
-                                     learning_rate_init=0.001, max_iter=1500, random_state=42)
+    "AdaBoost": AdaBoostRegressor(n_estimators=50),
+    "Bagging (Tree)": BaggingRegressor(DecisionTreeRegressor(), n_estimators=50),
+    "MLP (Neural Net)": MLPRegressor(hidden_layer_sizes=(20,), solver='lbfgs', max_iter=5000, tol=1e-6)
 }
 
-# Train, Predict, and Evaluate 
+#Train and evaluate models
 results = {}
 
 for name, model in models.items():
-    print(f"\n Training {name} ...")
+    print(f"\nTraining {name} ...")
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    # Calculate metrics
     mae = mean_absolute_error(y_test, y_pred)
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
@@ -81,26 +72,20 @@ for name, model in models.items():
     r = np.sqrt(r2) if r2 >= 0 else -np.sqrt(abs(r2))
     
     results[name] = [mae, mse, rmse, r2, r]
-    print(f"MAE: {mae:.3f} | RMSE: {rmse:.3f} | R²: {r2:.3f}")
+    print(f"MAE: {mae:.3f} | RMSE: {rmse:.3f} | R²: {r2:.3f} | R: {r:.3f}")
 
-# Convert to DataFrame
+#Results to DataFrame
 results_df = pd.DataFrame(results, index=["MAE", "MSE", "RMSE", "R²", "R"]).T
-results_df = results_df.sort_values(by="R²", ascending=False)
 
-# Display Results
-print("\n\n Model Performance Summary:")
-print(results_df.round(4))
-
-# Plot
-plt.figure(figsize=(16, 8))
-results_df[["MAE", "RMSE", "R²"]].plot(kind="bar", figsize=(16, 8))
-plt.title("Model Performance Comparison", fontsize=16)
-plt.ylabel("Error / Score", fontsize=12)
-plt.xticks(rotation=70, ha="right")
+#Plot comparison
+plt.figure(figsize=(16,8))
+results_df[["MAE","RMSE","R²"]].plot(kind="bar")
+plt.title("STLF Model Performance Comparison")
+plt.ylabel("Error / Score")
+plt.xticks(rotation=45)
 plt.grid(axis="y")
-plt.tight_layout()
 plt.show()
 
-# Identify Best Model
-best_model = results_df["R²"].idxmax()
-print(f"\n Best model based on R²: {best_model}")
+#Display summary table
+print("\nSTLF Model Performance Summary (MAE | MSE | RMSE | R² | R):")
+print(results_df)
