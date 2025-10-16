@@ -1,0 +1,38 @@
+Training Decision Tree ...
+MAE: 81.546 | RMSE: 109.568 | R²: 0.993 | R: 0.996
+
+Training Random Forest ...
+MAE: 15.153 | RMSE: 26.826 | R²: 1.000 | R: 1.000
+
+Training Gradient Boosting ...
+MAE: 21.643 | RMSE: 32.496 | R²: 0.999 | R: 1.000
+
+Training Linear SVM ...
+MAE: 72.335 | RMSE: 128.938 | R²: 0.990 | R: 0.995
+
+Training RBF SVM ...
+MAE: 693.289 | RMSE: 973.849 | R²: 0.431 | R: 0.656
+
+Training KNN (k=5) ...
+MAE: 135.026 | RMSE: 215.632 | R²: 0.972 | R: 0.986
+
+Training AdaBoost ...
+MAE: 121.136 | RMSE: 148.247 | R²: 0.987 | R: 0.993
+
+Training Bagging (Tree) ...
+MAE: 15.566 | RMSE: 27.389 | R²: 1.000 | R: 1.000
+
+Training MLP (Neural Net) ...
+MAE: 8.650 | RMSE: 11.600 | R²: 1.000 | R: 1.000
+
+STLF Model Performance Summary (MAE | MSE | RMSE | R² | R):
+                          MAE            MSE        RMSE        R²         R
+Decision Tree       81.545539   12005.052295  109.567570  0.992796  0.996391
+Random Forest       15.153353     719.624037   26.825809  0.999568  0.999784
+Gradient Boosting   21.643315    1056.000175   32.496156  0.999366  0.999683
+Linear SVM          72.335457   16624.947829  128.937767  0.990024  0.994999
+RBF SVM            693.289397  948382.746095  973.849447  0.430892  0.656424
+KNN (k=5)          135.026232   46497.090778  215.631841  0.972098  0.985950
+AdaBoost           121.136020   21977.218001  148.247152  0.986812  0.993384
+Bagging (Tree)      15.565676     750.148194   27.388833  0.999550  0.999775
+MLP (Neural Net)     8.650410     134.555123   11.599790  0.999919  0.999960
